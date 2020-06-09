@@ -1,3 +1,3 @@
 idf_component_register(SRCS "webhookIF.cpp"
-                    REQUIRES log
+                    REQUIRES log esp-tls
                     INCLUDE_DIRS "include")

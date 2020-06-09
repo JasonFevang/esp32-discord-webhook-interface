@@ -1,0 +1,18 @@
+POST https://discord.com/api/webhooks/719008915194642443/Ubp9z0s0CxoC2z5gd6FboaOPB1iDpqPE9mJU51oyrQUqDFRmtHgSl-WXwGc-xsp4Ncbq HTTP/1.0
+User-Agent: esp-idf/1.0 esp32
+Connection: close
+Host:discord.com
+Content-Type: application/json
+Content-Length: 24
+
+{"content":"my message"}I (6590) example: 282 bytes written
+
+POST https://discord.com/api/webhooks/719008915194642443/Ubp9z0s0CxoC2z5gd6FboaOPB1iDpqPE9mJU51oyrQUqDFRmtHgSl-WXwGc-xsp4Ncbq HTTP/1.0
+User-Agent: esp-idf/1.0 esp32
+Connection: close
+Host: www.discord.com
+Content-Type: application/json
+Content-Length:8
+
+{"content":"hey dawg"}I (13092) webhookIF: 283 bytes written
+
