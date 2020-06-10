@@ -128,7 +128,7 @@ void app_main(void)
     uint64_t t_start = esp_timer_get_time();
     uint64_t t_finish;
     while(1){
-        esp_err_t err = discord.sendMessage(msg4, strlen(msg4));
+        esp_err_t err = discord.send_message_print_response(msg4, strlen(msg4));
         t_finish = esp_timer_get_time();
         if(err != ESP_OK){
             ESP_LOGE(TAG, "send message failed %d", err);
@@ -136,7 +136,7 @@ void app_main(void)
         }
         numMessages++;
         ESP_LOGI(TAG, "ms/message %llu", (t_finish - t_start) / 1000 / numMessages);
-        ESP_LOGI(TAG, "free heap size %d", xPortGetFreeHeapSize());
+        //ESP_LOGI(TAG, "free heap size %d", xPortGetFreeHeapSize());
         //vTaskDelay(60000 / portTICK_PERIOD_MS);
     }
 

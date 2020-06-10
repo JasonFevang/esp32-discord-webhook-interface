@@ -23,13 +23,22 @@ public:
      */
     webhookIF(const char *webhook_URI, const uint8_t *binary_server_root_cert_begin, const uint8_t *binary_server_root_cert_end);
 
-    esp_err_t sendMessage(const char *content, int content_length);
+    esp_err_t send_message(const char *content, int content_length);
+
+    // For debugging
+    esp_err_t send_message_print_response(const char *content, int content_length);
 
 private:
     static const char *TAG;
     const char *m_webhook_uri;
-    const uint8_t *m_root_cert;
-    unsigned int m_root_cert_len;
+    esp_tls_cfg_t m_cfg = { 0 };
 
     const int m_response_buf_size = 512;
+
+    esp_tls_t *m_tls;
+
+    esp_err_t start_connection();
+    esp_err_t write_request(const char *content, int content_length);
+    esp_err_t print_response();
+    void close_connection();
 };
