@@ -57,10 +57,18 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
+    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        ESP_LOGE(TAG, "wifi disconnected");
+    }
 }
 
 void app_main(void)
 {
+    char errRes[128];
+    mbedtls_strerror(-0x2700, errRes, 128);
+    ESP_LOGI(TAG, "mbed_tls err %s", errRes);
+    mbedtls_strerror(-0x50, errRes, 128); // unknown error code
+    ESP_LOGI(TAG, "mbed_tls err %s", errRes);
     webhookIF discord(webhook_url, root_cert_start, root_cert_end);
 
     //Initialize NVS
@@ -116,12 +124,21 @@ void app_main(void)
     char msg2[32] = "msg2";
     char msg3[32] = "msg3";
     char msg4[32] = "msg4";
-    discord.sendMessage(msg1, strlen(msg1));
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
-    discord.sendMessage(msg2, strlen(msg2));
+    int numMessages = 0;
+    uint64_t t_start = esp_timer_get_time();
+    uint64_t t_finish;
+    while(1){
+        esp_err_t err = discord.sendMessage(msg4, strlen(msg4));
+        t_finish = esp_timer_get_time();
+        if(err != ESP_OK){
+            ESP_LOGE(TAG, "send message failed %d", err);
+            break;
+        }
+        numMessages++;
+        ESP_LOGI(TAG, "ms/message %llu", (t_finish - t_start) / 1000 / numMessages);
+        ESP_LOGI(TAG, "free heap size %d", xPortGetFreeHeapSize());
+        //vTaskDelay(60000 / portTICK_PERIOD_MS);
+    }
 
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
-
-    discord.sendMessage(msg3, strlen(msg3));
-    discord.sendMessage(msg4, strlen(msg4));
+    ESP_LOGI(TAG, "Number of successful messages: %d", numMessages);
 }

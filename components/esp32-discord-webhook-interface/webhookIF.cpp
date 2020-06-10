@@ -8,15 +8,11 @@ webhookIF::webhookIF(const char *webhook_URI,
     m_root_cert = binary_server_root_cert_begin;
     m_root_cert_len = binary_server_root_cert_end - binary_server_root_cert_begin;
 
-    if(strlen(webhook_URI) > sizeof(m_webhook_uri)){
-        ESP_LOGE(TAG, "Unexpectedly long webhook uri");
-        return;
-    }
-    strcpy(m_webhook_uri, webhook_URI);
+    m_webhook_uri = webhook_URI;
 }
 
 esp_err_t webhookIF::sendMessage(const char *content, int content_length){
-    ESP_LOGI(TAG, "sendMessage \"%s\"", content);
+    //ESP_LOGI(TAG, "sendMessage \"%s\"", content);
 
     // Start connection
     esp_tls_cfg_t cfg = { 0 };
@@ -29,8 +25,6 @@ esp_err_t webhookIF::sendMessage(const char *content, int content_length){
         ESP_LOGE(TAG, "Connection failed");
         return ESP_ERR_ESP_TLS_FAILED_CONNECT_TO_HOST;
     }
-
-    ESP_LOGI(TAG, "tls %d", tls->sockfd);
 
     // convert content_length to a char array
     char len[12];
@@ -63,8 +57,8 @@ esp_err_t webhookIF::sendMessage(const char *content, int content_length){
     strcat(rqst, "{\"content\":\""); //12
     strcat(rqst, content); //content_length
     strcat(rqst, "\"}"); //2
-    printf("%s", rqst);
-    ESP_LOGI(TAG, "rqst len %d", strlen(rqst));
+    //printf("%s", rqst);
+    //ESP_LOGI(TAG, "rqst len %d", strlen(rqst));
 
     size_t written_bytes = 0;
     int ret = 0;
@@ -88,13 +82,13 @@ esp_err_t webhookIF::sendMessage(const char *content, int content_length){
     free(rqst);
 
     // Read http response
+    esp_err_t retval = ESP_FAIL;
     do
     {
         // buffer to read the http response into
         char buf[m_response_buf_size] = { 0 };
 
         int len = sizeof(buf) - 1;
-        ESP_LOGI(TAG, "buf len %d", len);
         ret = esp_tls_conn_read(tls, (char *)buf, len);
         
         if(ret == MBEDTLS_ERR_SSL_WANT_WRITE  || ret == MBEDTLS_ERR_SSL_WANT_READ)
@@ -103,13 +97,15 @@ esp_err_t webhookIF::sendMessage(const char *content, int content_length){
         if(ret < 0)
         {
             ESP_LOGE(TAG, "esp_tls_conn_read  returned -0x%x", -ret);
-            return ESP_FAIL;
+            retval = ESP_FAIL;
+            break;
         }
 
         if(ret == 0)
         {
-            ESP_LOGI(TAG, "connection closed");
-            return ESP_OK;
+            //ESP_LOGI(TAG, "connection closed");
+            retval = ESP_OK;
+            break;
         }
 
         len = ret;
@@ -119,4 +115,7 @@ esp_err_t webhookIF::sendMessage(const char *content, int content_length){
             putchar(buf[i]);
         }
     } while(1);
+
+    esp_tls_conn_delete(tls);
+    return retval;
 }

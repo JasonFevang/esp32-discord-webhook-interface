@@ -12,13 +12,22 @@
  */
 class webhookIF {
 public:
-    webhookIF(const char *webhookURL, const uint8_t *binary_server_root_cert_begin, const uint8_t *binary_server_root_cert_end);
+    /**
+     * @brief Construct a webhook interface object. One object can interact with one webhook
+     * To use multiple webhooks, instantiate multiple instances of this class
+     * @param webhookURL character array containing the webhook url
+     * This is always copied by reference to save memory, do not invalidate this pointer
+     * @param binary_server_root_cert_begin pointer to the beginning of the discord root certificate. 
+     * This is always copied by reference to save memory, do not invalidate this pointer
+     * Intended to be loaded onto the esp32 using EMBED_TXTFILES CMake directive
+     */
+    webhookIF(const char *webhook_URI, const uint8_t *binary_server_root_cert_begin, const uint8_t *binary_server_root_cert_end);
 
     esp_err_t sendMessage(const char *content, int content_length);
 
 private:
     static const char *TAG;
-    char m_webhook_uri[128]; // Not sure if this will ever be too short
+    const char *m_webhook_uri;
     const uint8_t *m_root_cert;
     unsigned int m_root_cert_len;
 
