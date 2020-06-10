@@ -2,44 +2,50 @@
 
 const char * webhookIF::TAG = "webhookIF";
 
-esp_err_t webhookIF::setup(const char *webhookURL, 
+webhookIF::webhookIF(const char *webhook_URI, 
     const uint8_t *binary_server_root_cert_begin, const uint8_t *binary_server_root_cert_end){
-    ESP_LOGI(TAG, "setup");
 
-    int size = binary_server_root_cert_end - binary_server_root_cert_begin;
+    m_root_cert = binary_server_root_cert_begin;
+    m_root_cert_len = binary_server_root_cert_end - binary_server_root_cert_begin;
 
-    esp_tls_cfg_t cfg = { 0 };
-    cfg.cacert_pem_buf  = binary_server_root_cert_begin;
-    cfg.cacert_pem_bytes = static_cast<unsigned int>(binary_server_root_cert_end - binary_server_root_cert_begin);
-
-    m_tls = esp_tls_conn_http_new(webhookURL, &cfg);
-
-    m_webhook_url = webhookURL;
-
-    if(m_tls == nullptr) {
-        ESP_LOGE(TAG, "Connection failed...");
-        return ESP_FAIL;
+    if(strlen(webhook_URI) > sizeof(m_webhook_uri)){
+        ESP_LOGE(TAG, "Unexpectedly long webhook uri");
+        return;
     }
-    return ESP_OK;
+    strcpy(m_webhook_uri, webhook_URI);
 }
 
 esp_err_t webhookIF::sendMessage(const char *content, int content_length){
-    ESP_LOGI(TAG, "sendMessage");
+    ESP_LOGI(TAG, "sendMessage \"%s\"", content);
+
+    // Start connection
+    esp_tls_cfg_t cfg = { 0 };
+    cfg.cacert_pem_buf  = m_root_cert;
+    cfg.cacert_pem_bytes = m_root_cert_len;
+
+    esp_tls_t *tls = esp_tls_conn_http_new(m_webhook_uri, &cfg);
+
+    if(tls == nullptr) {
+        ESP_LOGE(TAG, "Connection failed");
+        return ESP_ERR_ESP_TLS_FAILED_CONNECT_TO_HOST;
+    }
+
+    ESP_LOGI(TAG, "tls %d", tls->sockfd);
 
     // convert content_length to a char array
     char len[12];
     sprintf(len, "%d", content_length + 14);
 
-    ESP_LOGI(TAG, "len %d", strlen(len));
-    ESP_LOGI(TAG, "wh %d", strlen(m_webhook_url));
+    //ESP_LOGI(TAG, "len %d", strlen(len));
+    //ESP_LOGI(TAG, "wh %d", strlen(m_webhook_uri));
 
-    int message_alloc_len = 154 + strlen(m_webhook_url)+strlen(len)+content_length + 200;
-    ESP_LOGI(TAG, "Message alloc length %d", message_alloc_len);
+    int message_alloc_len = 154 + strlen(m_webhook_uri)+strlen(len)+content_length + 200;
+    //ESP_LOGI(TAG, "Message alloc length %d", message_alloc_len);
 
     // construct message
     char *rqst = new char[message_alloc_len]; // remove the 200, just for easier development
     strcpy(rqst, "POST "); //5
-    strcat(rqst, m_webhook_url); // strlen(m_webhook_url)
+    strcat(rqst, m_webhook_uri); // strlen(m_webhook_url)
     strcat(rqst, " HTTP/1.0\r\n"); //11
     strcat(rqst, "User-Agent: esp-idf/1.0 esp32\r\n"); //31
     //general header
@@ -57,14 +63,15 @@ esp_err_t webhookIF::sendMessage(const char *content, int content_length){
     strcat(rqst, "{\"content\":\""); //12
     strcat(rqst, content); //content_length
     strcat(rqst, "\"}"); //2
+    printf("%s", rqst);
+    ESP_LOGI(TAG, "rqst len %d", strlen(rqst));
 
     size_t written_bytes = 0;
-    int ret;
-    printf("%s", rqst);
+    int ret = 0;
 
-    // Write http message to discord
+    // Write https message to discord
     do {
-        ret = esp_tls_conn_write(m_tls, 
+        ret = esp_tls_conn_write(tls, 
                                     rqst + written_bytes, 
                                     strlen(rqst) - written_bytes);
         if (ret >= 0) {
@@ -72,20 +79,23 @@ esp_err_t webhookIF::sendMessage(const char *content, int content_length){
             written_bytes += ret;
         } else if (ret != MBEDTLS_ERR_SSL_WANT_READ  && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
             ESP_LOGE(TAG, "esp_tls_conn_write  returned 0x%x\n", ret);
+            free(rqst);
             return ESP_FAIL;
         }
     } while(written_bytes < strlen(rqst));
 
-    // Read http response
+    // Done with the request now, free that memory
+    free(rqst);
 
+    // Read http response
     do
     {
         // buffer to read the http response into
-        char buf[512];
+        char buf[m_response_buf_size] = { 0 };
 
         int len = sizeof(buf) - 1;
-        bzero(buf, sizeof(buf));
-        ret = esp_tls_conn_read(m_tls, (char *)buf, len);
+        ESP_LOGI(TAG, "buf len %d", len);
+        ret = esp_tls_conn_read(tls, (char *)buf, len);
         
         if(ret == MBEDTLS_ERR_SSL_WANT_WRITE  || ret == MBEDTLS_ERR_SSL_WANT_READ)
             continue;

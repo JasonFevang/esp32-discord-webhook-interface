@@ -61,7 +61,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 
 void app_main(void)
 {
-    webhookIF discord;
+    webhookIF discord(webhook_url, root_cert_start, root_cert_end);
 
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -112,6 +112,16 @@ void app_main(void)
     }
 
 
-    discord.setup(webhook_url, root_cert_start, root_cert_end);
-    discord.sendMessage("hey dawg", 8);
+    char msg1[32] = "msg1";
+    char msg2[32] = "msg2";
+    char msg3[32] = "msg3";
+    char msg4[32] = "msg4";
+    discord.sendMessage(msg1, strlen(msg1));
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+    discord.sendMessage(msg2, strlen(msg2));
+
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+
+    discord.sendMessage(msg3, strlen(msg3));
+    discord.sendMessage(msg4, strlen(msg4));
 }
